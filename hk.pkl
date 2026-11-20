@@ -21,10 +21,13 @@ local oxfmtFiles =
     "**/*.astro",
     "**/*.cjs",
     "**/*.css",
+    "**/*.cts",
     "**/*.graphql",
     "**/*.hbs",
     "**/*.html",
     "**/*.js",
+    "**/*.json",
+    "**/*.jsonc",
     "**/*.jsx",
     "**/*.mjs",
     "**/*.mts",
@@ -163,13 +166,13 @@ local checks = new Mapping<String, Step> {
     exclude = generatedFolders
   }
 
-  // rumdl, tombi, ryl and sort-package-json own Markdown, TOML, YAML and package.json.
+  // rumdl, tombi and sort-package-json own Markdown, TOML and package.json. YAML is not here,
+  // because oxfmt writes `{ bar: 0 }` in a flow mapping and the braces rule of ryl rejects it.
   ["oxfmt"] = (Builtins.oxfmt) {
     glob = oxfmtFiles
-    exclude = generatedFolders
+    exclude = generatedFolders + List("**/package.json", "**/package-lock.json")
   }
   ["oxlint"] = (Builtins.ox_lint) {
-    glob = oxfmtFiles
     exclude = generatedFolders
     depends = "oxfmt"
   }
