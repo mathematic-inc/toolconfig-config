@@ -130,10 +130,11 @@ local checks = new Mapping<String, Step> {
   }
 
   // GitHub Actions.
+  // jactionlint reads its profile from `.github/actionlint.yaml`.
   ["actionlint"] = (Builtins.jactionlint) {
-    check = "jactionlint --profile correctness {{ files }}"
+    check = "jactionlint {{ files }}"
     check_diff = null
-    fix = "jactionlint --profile correctness --fix {{ files }}"
+    fix = "jactionlint --fix {{ files }}"
   }
   ["ghalint"] = (Builtins.ghalint_workflow) {
     depends = "actionlint"
@@ -143,9 +144,9 @@ local checks = new Mapping<String, Step> {
     check_diff = null
   }
   ["zizmor"] = (Builtins.zizmor) {
-    check = "zizmor --no-progress --min-severity low {{ files }}"
+    check = "zizmor --no-progress {{ files }}"
     check_diff = null
-    fix = "zizmor --no-progress --min-severity low --fix {{ files }}"
+    fix = "zizmor --no-progress --fix {{ files }}"
     depends = "pinact"
   }
 

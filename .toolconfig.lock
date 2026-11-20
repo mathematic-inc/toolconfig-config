@@ -3,8 +3,8 @@
 version = 1
 
 [outputs]
-".editorconfig" = { hash = "050072c12f744577f563d478ea2bdd301e98cd89d4bbc95f210ca09874385a34" }
-".github/jactionlint.yaml" = { hash = "cd68bd9c8568cf1dacc021a2a63a2500718d9696f218fd92b38e5fce9375f5b2" }
+".editorconfig" = { hash = "6b7d26a6082816abc56ec9cecc31d80a4711c93bb1774da560418a1fff11fefe" }
+".github/actionlint.yaml" = { hash = "0507e6dc7d7cc47356f687482bcece95784d98c83917ea840a23c6102732fb92" }
 ".gitleaks.toml" = { hash = "27630a96d6c55755cc37620f3933d5cab94b1eb78a726a32e11212972525d76e" }
 ".hadolint.yaml" = { hash = "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356" }
 ".oxfmtrc.json" = { hash = "c7b96649d127daefc18288e046cbb84765adbd7a2731e1064016004406978971" }

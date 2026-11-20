@@ -18,6 +18,7 @@ local generatedFolders =
 toolconfig {
   tools =
     List(
+      "actionlint",
       "buf",
       "cargo-deny",
       "gitleaks",
@@ -38,14 +39,9 @@ toolconfig {
   // tables, so the profile keeps the default.
   tombi { skip = List("max_line_length") }
   files {
-    ["jactionlint"] {
-      path = ".github/jactionlint.yaml"
-      format = "yaml"
-      config { profile = "correctness" }
-    }
     ["ryl"] {
-      // ToolConfig 2026.11.4 writes ryl's deprecated top-level `rules` table, which ryl 0.29
-      // ignores with a warning. This file writes `lint.rules` directly.
+      // TOOLCONFIG-BUG: ToolConfig 2026.11.4 writes ryl options in the deprecated top-level
+      // `rules` table, so the profile writes `.ryl.toml` here. Use the `ryl` tool after the fix.
       path = ".ryl.toml"
       format = "toml"
       config {
@@ -127,6 +123,8 @@ sections {
         ["unknown-git"] = "deny"
       }
     }
+    // jactionlint reads `.github/actionlint.yaml`.
+    actionlint { profile = "default" }
     gitleaks { extend { useDefault = true } }
     knip { treatConfigHintsAsErrors = true }
     lychee {
@@ -227,8 +225,6 @@ sections {
     rustfmt { use_field_init_shorthand = true }
   }
   ["*.go"] { indent_style = "tab" }
-  // shfmt reads these properties. The scripts that shfmt formats use tabs.
-  ["*.{sh,bash}"] { indent_style = "tab" }
   ["{Makefile,*.mk}"] { indent_style = "tab" }
   ["*.{md,markdown}"] { max_line_length = 80 }
   ["*.proto"] {

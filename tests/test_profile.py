@@ -93,7 +93,7 @@ SHELL = {
 set -euo pipefail
 
 greet() {
-\tprintf 'Hello, %s.\\n' "$1"
+  printf 'Hello, %s.\\n' "$1"
 }
 
 greet "${1:-world}"
@@ -133,6 +133,10 @@ on:
   pull_request:
 
 permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
@@ -208,7 +212,9 @@ class Profile(unittest.TestCase):
         self.assertIn("CHANGELOG.md", self.read_toml("typos.toml")["files"]["extend-exclude"])
         editorconfig = (self.directory / ".editorconfig").read_text(encoding="utf-8")
         self.assertIn("[*.go]\nindent_style = tab\n", editorconfig)
-        self.assertIn("[*.{sh,bash}]\nindent_style = tab\n", editorconfig)
+        self.assertNotIn("[*.{sh,bash}]", editorconfig)
+        actionlint = (self.directory / ".github/actionlint.yaml").read_text(encoding="utf-8")
+        self.assertEqual(actionlint, "profile: default\n")
 
     def test_rust(self) -> None:
         self.consumer(RUST)

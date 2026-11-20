@@ -55,12 +55,12 @@ Run `toolconfig generate` before the checks: in the hk hooks and in CI. Run
 
 | Tool | File | Settings |
 | --- | --- | --- |
-| EditorConfig | `.editorconfig` | UTF-8, LF, final newline, no trailing whitespace, 2 spaces, width 100; Rust and Python 4 spaces; Go, shell and Make tabs; Markdown width 80 |
+| EditorConfig | `.editorconfig` | UTF-8, LF, final newline, no trailing whitespace, 2 spaces, width 100; Rust and Python 4 spaces; Go and Make tabs; Markdown width 80 |
+| actionlint (read by jactionlint) | `.github/actionlint.yaml` | profile `default` |
 | buf | `buf.yaml` | `lint` uses `STANDARD`, `breaking` uses `FILE` |
 | cargo-deny | `deny.toml` | licenses Apache-2.0, MIT, Unicode-3.0, Zlib; wildcards and unknown sources denied; duplicate versions warn |
 | gitleaks | `.gitleaks.toml` | the default rules |
 | hadolint | `.hadolint.yaml` | the default rules |
-| jactionlint | `.github/jactionlint.yaml` | profile `correctness` |
 | knip | `knip.json` | configuration hints are errors |
 | lychee | `lychee.toml` | offline, no progress bar |
 | oxfmt | `.oxfmtrc.json` | semicolons, double quotes, sorted imports, Svelte files; no Markdown or TOML |
@@ -88,7 +88,9 @@ These settings are not in a file that ToolConfig writes.
 The hk steps carry the settings of harper, zizmor, ghalint, kingfisher,
 shellharden and sort-package-json as command-line options. `hk.pkl` in this
 repository has the steps of the organization. The harper step ignores only the
-rules that every repository ignores.
+rules that every repository ignores. The zizmor step reports findings of every
+severity. The jactionlint step takes its profile from `.github/actionlint.yaml`,
+so it has no `--profile` option.
 
 Clippy reads its lint levels from `Cargo.toml`, which ToolConfig does not write.
 Each Rust repository puts this table in its `Cargo.toml`. A single crate uses
@@ -99,34 +101,7 @@ Each Rust repository puts this table in its `Cargo.toml`. A single crate uses
 all = { level = "deny", priority = -1 }
 nursery = { level = "deny", priority = -1 }
 pedantic = { level = "deny", priority = -1 }
-restriction = { level = "deny", priority = -1 }
-as_conversions = "allow"
-big_endian_bytes = "allow"
-blanket_clippy_restriction_lints = "allow"
-exhaustive_enums = "allow"
-exhaustive_structs = "allow"
-expect_used = "allow"
-field_scoped_visibility_modifiers = "allow"
-implicit_return = "allow"
-inline_asm_x86_intel_syntax = "allow"
-little_endian_bytes = "allow"
-missing_docs_in_private_items = "allow"
-missing_trait_methods = "allow"
-module_name_repetitions = "allow"
-needless_borrowed_reference = "allow"
-pub_use = "allow"
-pub_with_shorthand = "allow"
-question_mark_used = "allow"
 redundant_pub_crate = "allow"
-ref_patterns = "allow"
-rest_pattern_accessible_field = "allow"
-self_named_module_files = "allow"
-semicolon_outside_block = "allow"
-shadow_reuse = "allow"
-shadow_same = "allow"
-single_call_fn = "allow"
-unreachable = "allow"
-unseparated_literal_suffix = "allow"
 
 [workspace.lints.rust]
 missing_debug_implementations = "deny"
@@ -137,7 +112,7 @@ unreachable_pub = "deny"
 
 ## Decisions
 
-The values come from the settings files, `hk.pkl` steps and CI commands of 21
+The values come from the settings files, `hk.pkl` steps and CI commands of 22
 repositories on 2026-11-20. "Default" means that the repository runs the tool
 with no setting.
 
@@ -166,19 +141,15 @@ with no setting.
 | cargo-deny `bans.allow-workspace` | `true`: protovalidate-buffa, sqlc-gen-sqlx | not set | Stricter |
 | cargo-deny `bans.deny` | `chrono`, `chrono-tz`: protovalidate-buffa | local | A choice of that project. Three other repositories depend on `chrono` |
 | shellcheck `external-sources` | `-x`: vscode-pdf; default: others | on | Union: shellcheck also checks the files that a script sources |
-| Shell indentation | tabs: sqlc-gen-sqlx, vscode-pdf; 2 spaces: scoped-git-token-action | tabs | Most repositories. shfmt reads it from `.editorconfig` |
+| Shell indentation | tabs (the shfmt default): sqlc-gen-sqlx, vscode-pdf; 2 spaces: scoped-git-token-action, toolconfig-action (`.editorconfig`) | 2 spaces | A style choice with two repositories on each side. Only toolconfig-action sets it, spaces agree with the `*` section, and 4 scripts change, not 6. shfmt reads it from `.editorconfig` |
+| jactionlint profile | `correctness`: the 17 repositories with the organization's hk steps; `default`: toolconfig-action | `default` | Stricter: the `default` profile adds the security and policy rules |
+| zizmor minimum severity (hk) | `low`: the 17 repositories with the organization's hk steps; every severity: toolconfig-action | every severity | Stricter |
 | Python width | 100: toolconfig | 100 | The only repository with Python. Ruff's selected rules do not limit width |
 | TOML width | tombi default: every repository | not set | Most repositories. An explicit width makes tombi wrap arrays and inline tables |
 | Changelogs and generated folders | excluded by every `hk.pkl` | excluded in rumdl and typos | release-please writes the changelogs. The tools then agree with hk |
 | harper ignored rules | 15 rules in every repository; 1 to 6 more in 6 repositories | the 15 rules | Stricter: the fewest ignored rules |
-| Clippy and Rust lint levels | protovalidate-buffa: all, nursery, pedantic `deny`; unfmt: all, nursery, pedantic, restriction `warn` with 19 `allow`; tauri-plugin-ui-inspector: all, pedantic and 4 Rust lints `warn`; toolconfig: `unreachable_pub`; default: others | every group and lint at `deny`; the `allow` list of unfmt without `separated_literal_suffix`; one lint of each contradictory pair below at `allow` | Stricter. CI runs Clippy with `-D warnings`, so `warn` fails too |
-| Clippy `pub_with_shorthand`, `pub_without_shorthand` | both on in the union; the code of 7 repositories writes `pub(crate)` and `pub(super)` (177 findings for the first lint, 0 for the second) | `pub_with_shorthand` allowed | The two lints contradict each other. The code uses the short form |
-| Clippy `semicolon_inside_block`, `semicolon_outside_block` | both on in the union; 9 findings for the second lint, 0 for the first | `semicolon_outside_block` allowed | The two lints contradict each other. The code puts the semicolon inside the block |
-| Clippy `redundant_pub_crate`, `field_scoped_visibility_modifiers` and Rust `unreachable_pub` | toolconfig and tauri-plugin-ui-inspector turn on `unreachable_pub`; the union adds the two Clippy lints | both Clippy lints allowed | In a private module, `pub` breaks `unreachable_pub` and `pub(crate)` breaks the Clippy lints. Two repositories ask for `unreachable_pub` by name |
-| Clippy `big_endian_bytes`, `little_endian_bytes`, `host_endian_bytes` | all three on in the union | the first two allowed | With all three, no byte-order conversion passes. A wire format sets the byte order: protobuf is little-endian, a Connect frame header is big-endian |
-| Clippy `rest_pattern_accessible_field`, `unneeded_field_pattern` | both on in the union; 137 findings for the first lint, 0 for the second | `rest_pattern_accessible_field` allowed | The two lints contradict each other. The code uses `..` in struct patterns |
-| Clippy `inline_asm_x86_att_syntax`, `inline_asm_x86_intel_syntax` | both on in the union | `inline_asm_x86_intel_syntax` allowed | With both, no x86 assembly passes. Intel syntax is the default of Rust |
-| Clippy `separated_literal_suffix`, `unseparated_literal_suffix` | unfmt allows the first lint, so it asks for `1_u32`; the code of 4 repositories writes `1u32` (670 findings for the second lint, 0 for the first) | `unseparated_literal_suffix` allowed | A style choice. Most repositories write `1u32` |
+| Clippy and Rust lint levels | protovalidate-buffa: `all`, `nursery`, `pedantic` `deny`; unfmt: `all`, `nursery`, `pedantic`, `restriction` `warn` with 19 `allow`; tauri-plugin-ui-inspector: `all`, `pedantic` and 4 Rust lints `warn`; toolconfig: `unreachable_pub`; default: others | `all`, `nursery`, `pedantic` and the 4 Rust lints at `deny`; `restriction` off | Stricter for the groups. Clippy's documentation says not to turn on the whole `restriction` group, and no repository turns on a `restriction` lint by name. Thus, the 19 `allow` entries of unfmt have no lint to stop. The one exception is `needless_borrowed_reference`; it is on, because the `restriction` lint that it conflicted with is off |
+| Clippy `redundant_pub_crate` and Rust `unreachable_pub` | toolconfig and tauri-plugin-ui-inspector turn on `unreachable_pub`; `nursery` holds `redundant_pub_crate` | `redundant_pub_crate` allowed | In a private module, `pub` breaks `unreachable_pub` and `pub(crate)` breaks `redundant_pub_crate`. Two repositories ask for `unreachable_pub` by name |
 
 Some settings had one value in every repository that set them. The profile keeps
 that value. These settings are:
@@ -186,20 +157,20 @@ that value. These settings are:
 - buf `STANDARD` and `FILE`;
 - cargo-deny wildcards and unknown sources `deny`;
 - the default rules of gitleaks;
-- jactionlint `correctness`;
 - knip configuration hints as errors;
 - lychee offline;
 - the oxlint rules of the shared `.oxlintrc.json`;
 - oxfmt semicolons and double quotes;
 - the pinact rule for `dtolnay/rust-toolchain`;
-- the ryl rules.
+- the ryl rules;
+- zizmor hash pins for every action. toolconfig-action writes this in
+  `.github/zizmor.yml`, and it is the default of zizmor 1.32, so the profile
+  writes no file.
 
 ToolConfig 2026.11.4 writes ryl's projected options in the top-level `rules`
 table. ryl 0.29 ignores that table when `lint.rules` is set, and prints a
-warning. Thus, the profile writes `.ryl.toml` as a `files` output.
-
-jactionlint reads `.github/jactionlint.yaml`, not `.github/actionlint.yaml`.
-Thus, the profile writes that file as a `files` output.
+warning. Until ToolConfig writes `lint.rules`, the profile writes `.ryl.toml` as
+a `files` output.
 
 ## Change and verify
 
