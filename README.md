@@ -1,11 +1,12 @@
 # ToolConfig policy for mathematic-inc
 
 The shared [ToolConfig](https://github.com/mathematic-inc/toolconfig) policy for
-the repositories of mathematic-inc. It needs ToolConfig 2026.11.4 or newer and
-Git.
+the repositories of mathematic-inc. It needs ToolConfig 2026.11.6 or newer, hk
+2.13.0 or newer and Git.
 
 The policy is one profile, `profiles/org/.toolconfig.pkl`. It holds the settings
-that ToolConfig writes for the tools of mathematic-inc repositories.
+that ToolConfig writes for the tools of mathematic-inc repositories. It also
+writes the hk steps of the organization, `hk/org.pkl`.
 [Outside ToolConfig](#outside-toolconfig) gives the other settings. Where
 repositories disagree, the profile keeps the stricter setting. For a pure style
 choice, it keeps the most common one. [Decisions](#decisions) gives each choice
@@ -16,7 +17,7 @@ and its reason.
 Write this `.toolconfig.pkl` in the repository:
 
 ```pkl
-amends "package://github.com/mathematic-inc/toolconfig/releases/download/v2026.11.4/toolconfig@2026.11.4#/ToolConfig.pkl"
+amends "package://github.com/mathematic-inc/toolconfig/releases/download/v2026.11.6/toolconfig@2026.11.6#/ToolConfig.pkl"
 
 root = true
 
@@ -48,11 +49,35 @@ to change one value.
 Remove each native file that the profile writes with `git rm` before the first
 `toolconfig generate`. ToolConfig does not overwrite a file that it did not
 write. Then run `toolconfig init --gitignore`, so that Git ignores the generated
-files. Commit `.toolconfig.pkl`, `.toolconfig.lock`, `.editorconfig` and
-`.gitignore`.
+files. Commit `.toolconfig.pkl`, `.toolconfig.lock`, `.editorconfig`,
+`.gitignore` and `.hk/org.pkl`.
 
-A fresh checkout does not have the generated files. In `hk.pkl`, copy the
-`toolconfig` step of this repository as the first step. In CI, run
+## hk
+
+The profile writes `hk/org.pkl` of this repository to `.hk/org.pkl`. Write this
+`hk.pkl` in the repository:
+
+```pkl
+amends ".hk/org.pkl"
+
+exclude = super.exclude + List("**/permissions/**")
+
+steps { ["cargo-test"] { glob = "**/*.rs"; check = "cargo test --workspace" } }
+```
+
+Keep only local steps, changes to the steps of the organization and exclusions
+in `hk.pkl`. A local exclusion extends the top-level `exclude` of the
+organization with `super.exclude + List(...)`. A plain `List(...)` replaces it.
+The top-level `exclude` applies to every step. To change one step, amend it by
+name, for example `steps { ["harper"] { check = "..." } }`.
+
+Git keeps `.hk/org.pkl`, because hk reads `hk.pkl` before a step can write
+files. hk 2.13 reads a missing `amends` target as an empty module, with no
+error. `toolconfig check --strict` reports a missing, stale or modified
+`.hk/org.pkl`. Do not edit it. A new `rev` and `toolconfig generate` change it.
+
+A fresh checkout does not have the other generated files. The first step runs
+`toolconfig generate --strict`, and the other steps wait for it. In CI, run
 [toolconfig-action](https://github.com/mathematic-inc/toolconfig-action) in each
 job that runs a tool, before that tool. The action runs
 `toolconfig check --strict` and then `toolconfig generate --strict`. A job that
@@ -71,14 +96,14 @@ installed.
 
 ## Outside ToolConfig
 
-These settings are not in a file that ToolConfig writes.
+These settings are not in a file that ToolConfig writes for a tool.
 
-`hk.pkl` in this repository has the steps of the organization. The harper,
-zizmor, gitleaks and kingfisher steps hold their settings as command-line
-options. ghalint, shellharden and sort-package-json run with their defaults. The
-harper step ignores only the rules that every repository ignores. The zizmor
-step reports findings of every severity. The jactionlint step takes its profile
-from `.github/actionlint.yaml`, so it has no `--profile` option.
+The harper, zizmor, gitleaks and kingfisher steps of `hk/org.pkl` hold their
+settings as command-line options. ghalint, shellharden and sort-package-json run
+with their defaults. The harper step ignores only the rules that every
+repository ignores. The zizmor step reports findings of every severity. The
+jactionlint step takes its profile from `.github/actionlint.yaml`, so it has no
+`--profile` option.
 
 Clippy reads its lint levels from `Cargo.toml`, which ToolConfig does not write.
 Put this table in the root `Cargo.toml` of each Rust repository. Add
@@ -139,6 +164,7 @@ with no setting.
 | Python width | 100: toolconfig | 100 | The only repository with Python. Ruff's selected rules do not limit width |
 | TOML width | tombi default: every repository | not set | Every repository. An explicit width makes tombi wrap arrays and inline tables |
 | Changelogs and generated folders | Excluded by the 17 `hk.pkl` files of the organization's steps | Changelogs: rumdl and typos. Generated folders: oxfmt, oxlint, rumdl and typos | release-please writes most changelogs. The tools then agree with hk |
+| Generated folders in hk | Excluded by 12 steps in the 17 `hk.pkl` files of the organization's steps: the Markdown, YAML, JavaScript, JSON and Rust format steps, and the whitespace, newline and large-file checks. Read by the other steps | excluded for every step, in the top-level `exclude` | One list that a repository extends. gitleaks scans every commit, generated folders included |
 | harper ignored rules | 15 rules in the 17 repositories with the organization's hk steps. 1 to 6 more in 7 repositories | the 15 rules | Stricter: the fewest ignored rules |
 | Clippy and Rust lint levels | protovalidate-buffa: `all`, `nursery`, `pedantic` `deny`. unfmt: `all`, `nursery`, `pedantic`, `restriction` `warn` with 19 `allow`. tauri-plugin-ui-inspector: `all`, `pedantic` and 4 Rust lints `warn`. toolconfig: `unreachable_pub`. Default: others | `all`, `nursery`, `pedantic` and the 4 Rust lints at `deny`. `restriction` off | Stricter for the groups. Clippy's documentation says not to turn on the whole `restriction` group. No repository turns on a `restriction` lint by name, so the 19 `allow` entries of unfmt have nothing to stop. unfmt allows `needless_borrowed_reference` only because of `pattern_type_mismatch`, a `restriction` lint. The table leaves it on |
 | Clippy `redundant_pub_crate` and Rust `unreachable_pub` | toolconfig and tauri-plugin-ui-inspector turn on `unreachable_pub`. `nursery` holds `redundant_pub_crate` | `redundant_pub_crate` allowed | In a private module, `pub` breaks `unreachable_pub` and `pub(crate)` breaks `redundant_pub_crate`. Two repositories ask for `unreachable_pub` by name |

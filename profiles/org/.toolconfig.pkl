@@ -1,5 +1,5 @@
 amends
-  "package://github.com/mathematic-inc/toolconfig/releases/download/v2026.11.4/toolconfig@2026.11.4#/ToolConfig.pkl"
+  "package://github.com/mathematic-inc/toolconfig/releases/download/v2026.11.6/toolconfig@2026.11.6#/ToolConfig.pkl"
 
 // The README gives the reason for each choice.
 
@@ -39,6 +39,13 @@ toolconfig {
     )
   tombi { skip = List("max_line_length") }
   files {
+    // hk reads `hk.pkl` before the first step runs, so the base that it amends is committed.
+    ["hk"] {
+      path = ".hk/org.pkl"
+      format = "text"
+      committed = true
+      config = read("../../hk/org.pkl").text
+    }
     ["ryl"] {
       // TOOLCONFIG-BUG: ToolConfig 2026.11.4 writes ryl options in the deprecated top-level
       // `rules` table, so the profile writes `.ryl.toml` here. Use the `ryl` tool after the fix.
