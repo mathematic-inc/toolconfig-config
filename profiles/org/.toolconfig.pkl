@@ -15,6 +15,8 @@ local generatedFolders =
     "**/vendor/**",
   )
 
+local generatedFoldersAndChangelogs = generatedFolders + List("**/CHANGELOG.md")
+
 toolconfig {
   tools =
     List(
@@ -35,8 +37,6 @@ toolconfig {
       "ty",
       "typos",
     )
-  // tombi wraps no line at its default settings. An explicit width wraps long arrays and inline
-  // tables, so the profile keeps the default.
   tombi { skip = List("max_line_length") }
   files {
     ["ryl"] {
@@ -47,6 +47,7 @@ toolconfig {
       config {
         files { yaml = List("*.yaml", "*.yml") }
         lint {
+          strict = true
           rules {
             anchors = "enable"
             braces = "enable"
@@ -83,6 +84,8 @@ toolconfig {
       }
     }
     ["pinact"] {
+      // pinact asks for a version comment on a commit pin. `dtolnay/rust-toolchain` has no version
+      // tags, so its commit pins carry `# stable`, a branch name.
       path = ".pinact.yaml"
       format = "yaml"
       config {
@@ -91,7 +94,10 @@ toolconfig {
           new {
             ignore = true
             conditions {
-              new { expr = "ActionName == \"dtolnay/rust-toolchain\"" }
+              new {
+                expr =
+                  "ActionName == \"dtolnay/rust-toolchain\" && ActionVersion matches \"^[0-9a-f]{40}$\""
+              }
             }
           }
         }
@@ -115,7 +121,6 @@ sections {
         allow = List("Apache-2.0", "MIT", "Unicode-3.0", "Zlib")
       }
       bans {
-        ["multiple-versions"] = "warn"
         wildcards = "deny"
       }
       sources {
@@ -123,22 +128,14 @@ sections {
         ["unknown-git"] = "deny"
       }
     }
-    // jactionlint reads `.github/actionlint.yaml`.
     actionlint { profile = "default" }
     gitleaks { extend { useDefault = true } }
     knip { treatConfigHintsAsErrors = true }
-    lychee {
-      offline = true
-      no_progress = true
-    }
+    lychee { offline = true }
     oxfmt {
-      semi = true
-      singleQuote = false
       sortImports = true
-      // sort-package-json orders package.json keys.
       sortPackageJson = false
       svelte { sortOrder = "options-scripts-markup-styles" }
-      // rumdl formats Markdown and tombi formats TOML.
       ignorePatterns = generatedFolders + List("**/*.md", "**/*.toml")
     }
     oxlint {
@@ -214,11 +211,10 @@ sections {
       }
     }
     rumdl {
-      global { exclude = generatedFolders + List("**/CHANGELOG.md") }
+      global { exclude = generatedFoldersAndChangelogs }
     }
     shellcheck { ["external-sources"] = true }
-    // release-please writes the changelogs.
-    typos { files { ["extend-exclude"] = generatedFolders + List("CHANGELOG.md") } }
+    typos { files { ["extend-exclude"] = generatedFoldersAndChangelogs } }
   }
   ["*.{rs,py,pyi}"] { indent_size = 4 }
   ["*.rs"] {
@@ -227,11 +223,4 @@ sections {
   ["*.go"] { indent_style = "tab" }
   ["{Makefile,*.mk}"] { indent_style = "tab" }
   ["*.{md,markdown}"] { max_line_length = 80 }
-  ["*.proto"] {
-    buf {
-      version = "v2"
-      lint { use = List("STANDARD") }
-      breaking { use = List("FILE") }
-    }
-  }
 }

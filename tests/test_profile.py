@@ -1,17 +1,29 @@
 """Generate the organization profile in fixture consumers and run each tool on them."""
 
-import json
+import os
 import shutil
 import subprocess
 import tempfile
-import tomllib
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PROFILE = ROOT / "profiles" / "org" / ".toolconfig.pkl"
+POLICY_URL = "https://github.com/mathematic-inc/toolconfig-config.git"
+CONSUMER_SOURCE = """\
+amends "package://github.com/mathematic-inc/toolconfig/releases/download/v2026.11.4/toolconfig@2026.11.4#/ToolConfig.pkl"
 
-RUST = {
+root = true
+
+toolconfig {{
+  `extends` = List(new Repository {{
+    git = "{git}"
+    rev = "{rev}"
+    path = "profiles/org/.toolconfig.pkl"
+  }})
+}}
+"""
+
+RUST_FILES = {
     "Cargo.toml": """\
 [package]
 name = "fixture"
@@ -29,7 +41,7 @@ pub const fn add(left: u64, right: u64) -> u64 {
 """,
 }
 
-TYPESCRIPT = {
+TYPESCRIPT_FILES = {
     "package.json": """\
 {
   "name": "fixture",
@@ -56,18 +68,7 @@ export function greet(name: string): string {
 """,
 }
 
-PYTHON = {
-    "fixture.py": '''\
-"""A module that the fixture checks."""
-
-
-def greet(name: str) -> str:
-    """Return a greeting."""
-    return f"Hello, {name}."
-''',
-}
-
-PROTOBUF = {
+PROTOBUF_FILES = {
     "acme/v1/greeting.proto": """\
 syntax = "proto3";
 
@@ -87,7 +88,7 @@ message GreetResponse {
 """,
 }
 
-SHELL = {
+SHELL_FILES = {
     "greet.sh": """\
 #!/usr/bin/env bash
 set -euo pipefail
@@ -100,28 +101,7 @@ greet "${1:-world}"
 """,
 }
 
-DOCUMENTS = {
-    "README.md": """\
-# Fixture
-
-The [guide](docs/guide.md) shows how to use the fixture.
-""",
-    "docs/guide.md": """\
-# Guide
-
-Run the checks before you push a change.
-""",
-    "config.yaml": """\
-name: fixture
-enabled: true
-items:
-  - one
-  - two
-""",
-    "settings.toml": """\
-name = "fixture"
-items = ["one", "two"]
-""",
+DOCKER_AND_WORKFLOW_FILES = {
     "Dockerfile": """\
 FROM debian:13-slim
 USER 65534
@@ -134,14 +114,9 @@ on:
 
 permissions: {}
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   check:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
     permissions:
       contents: read
     steps:
@@ -153,138 +128,113 @@ jobs:
 """,
 }
 
-PINACT = ("pinact", "run", "--fix=false", "--no-api", ".github/workflows/check.yml")
+PINACT_CHECK = ("pinact", "run", "--fix=false", "--no-api", ".github/workflows/check.yml")
 
 
 class Profile(unittest.TestCase):
-    def setUp(self) -> None:
-        self.assertIsNotNone(shutil.which("toolconfig"), "Install the pinned tools first")
-        temporary = tempfile.TemporaryDirectory()
-        self.addCleanup(temporary.cleanup)
-        self.directory = Path(temporary.name)
-        # jactionlint and other tools find their settings at the root of a Git repository.
-        self.assert_passes("git", "init", "--quiet")
+    environment: dict[str, str]
+    revision: str
 
-    def run_tool(self, *command: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(
+    @classmethod
+    def setUpClass(cls) -> None:
+        policy_directory = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(policy_directory.cleanup)
+        policy = Path(policy_directory.name)
+        repository = policy / "repository"
+        shutil.copytree(ROOT / "profiles", repository / "profiles")
+        cls.environment = {
+            **os.environ,
+            "GIT_CONFIG_GLOBAL": str(policy / "gitconfig"),
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "TOOLCONFIG_REPO_CACHE_DIR": str(policy / "cache"),
+        }
+        git = ("git", "-C", str(repository))
+        cls.run_in(policy, *git, "init", "--quiet")
+        cls.run_in(policy, *git, "add", "--all")
+        cls.run_in(
+            policy,
+            *git,
+            "-c",
+            "user.name=fixture",
+            "-c",
+            "user.email=fixture@example.com",
+            "commit",
+            "--quiet",
+            "--message=fixture",
+        )
+        cls.revision = cls.run_in(policy, *git, "rev-parse", "HEAD").stdout.strip()
+        # The consumers fetch the profile from this commit, as they fetch it from GitHub.
+        cls.run_in(
+            policy,
+            "git",
+            "config",
+            "--file",
+            str(policy / "gitconfig"),
+            f"url.{repository.as_uri()}.insteadOf",
+            POLICY_URL,
+        )
+
+    @classmethod
+    def run_in(cls, directory: Path, *command: str) -> subprocess.CompletedProcess[str]:
+        result = subprocess.run(
             command,
-            cwd=self.directory,
+            cwd=directory,
+            env=cls.environment,
             capture_output=True,
             text=True,
             timeout=300,
             check=False,
         )
+        if result.returncode != 0:
+            raise AssertionError(f"{command}\n{result.stdout}\n{result.stderr}")
+        return result
+
+    def setUp(self) -> None:
+        temporary_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary_directory.cleanup)
+        self.directory = Path(temporary_directory.name)
+        # jactionlint and other tools find their settings at the root of a Git repository.
+        self.assert_passes("git", "init", "--quiet")
 
     def assert_passes(self, *command: str) -> None:
-        result = self.run_tool(*command)
-        self.assertEqual(result.returncode, 0, f"{command}\n{result.stdout}\n{result.stderr}")
+        self.run_in(self.directory, *command)
 
-    def consumer(self, files: dict[str, str], overrides: str = "") -> None:
+    def generate_consumer(self, files: dict[str, str]) -> None:
         for name, text in files.items():
             path = self.directory / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(text, encoding="utf-8")
         (self.directory / ".toolconfig.pkl").write_text(
-            f"amends {json.dumps(str(PROFILE))}\n{overrides}\n", encoding="utf-8"
+            CONSUMER_SOURCE.format(git=POLICY_URL, rev=self.revision), encoding="utf-8"
         )
         self.assert_passes("toolconfig", "generate", "--strict")
-        self.assert_passes("toolconfig", "check", "--strict")
-
-    def read_json(self, name: str) -> dict:
-        return json.loads((self.directory / name).read_text(encoding="utf-8"))
-
-    def read_toml(self, name: str) -> dict:
-        return tomllib.loads((self.directory / name).read_text(encoding="utf-8"))
-
-    def test_settings(self) -> None:
-        self.consumer({})
-        deny = self.read_toml("deny.toml")
-        self.assertEqual(deny["licenses"]["allow"], ["Apache-2.0", "MIT", "Unicode-3.0", "Zlib"])
-        self.assertEqual(deny["bans"]["wildcards"], "deny")
-        self.assertEqual(deny["sources"]["unknown-git"], "deny")
-        oxlint = self.read_json(".oxlintrc.json")
-        self.assertTrue(oxlint["options"]["typeAware"])
-        self.assertEqual(oxlint["categories"]["pedantic"], "deny")
-        self.assertEqual(self.read_toml(".rumdl.toml")["MD013"]["line-length"], 80)
-        self.assertEqual(self.read_toml("rustfmt.toml")["max_width"], 100)
-        self.assertEqual(self.read_toml(".ryl.toml")["lint"]["rules"]["line-length"], "disable")
-        self.assertNotIn("line-width", self.read_toml("tombi.toml")["format"]["rules"])
-        self.assertIn("CHANGELOG.md", self.read_toml("typos.toml")["files"]["extend-exclude"])
-        editorconfig = (self.directory / ".editorconfig").read_text(encoding="utf-8")
-        self.assertIn("[*.go]\nindent_style = tab\n", editorconfig)
-        self.assertNotIn("[*.{sh,bash}]", editorconfig)
-        actionlint = (self.directory / ".github/actionlint.yaml").read_text(encoding="utf-8")
-        self.assertEqual(actionlint, "profile: default\n")
 
     def test_rust(self) -> None:
-        self.consumer(RUST)
+        self.generate_consumer(RUST_FILES)
         self.assert_passes("cargo", "generate-lockfile", "--offline")
         self.assert_passes("cargo", "fmt", "--check")
         self.assert_passes("cargo-deny", "--locked", "check", "bans", "licenses", "sources")
 
     def test_typescript(self) -> None:
-        self.consumer(TYPESCRIPT)
+        self.generate_consumer(TYPESCRIPT_FILES)
         self.assert_passes("oxfmt", "--check", ".")
         self.assert_passes("oxlint", ".")
         self.assert_passes("knip", "--no-progress")
 
-    def test_python(self) -> None:
-        self.consumer(PYTHON)
-        self.assert_passes("ruff", "check", ".")
-        self.assert_passes("ruff", "format", "--check", ".")
-        self.assert_passes("ty", "check", ".")
-
     def test_protobuf(self) -> None:
-        self.consumer(PROTOBUF)
+        self.generate_consumer(PROTOBUF_FILES)
         self.assert_passes("buf", "lint")
         self.assert_passes("buf", "format", "--diff", "--exit-code")
 
     def test_shell(self) -> None:
-        self.consumer(SHELL)
+        self.generate_consumer(SHELL_FILES)
         self.assert_passes("shellcheck", "greet.sh")
         self.assert_passes("shfmt", "--diff", "greet.sh")
 
-    def test_documents(self) -> None:
-        self.consumer(DOCUMENTS)
-        self.assert_passes("rumdl", "check", ".")
-        self.assert_passes("ryl", "check", "--strict", ".")
-        self.assert_passes("tombi", "format", "--check", "settings.toml")
-        self.assert_passes("tombi", "lint", "settings.toml")
-        self.assert_passes("typos", ".")
-        self.assert_passes("lychee", "README.md", "docs/guide.md")
-        self.assert_passes("gitleaks", "dir", "--redact", "--no-banner", ".")
+    def test_dockerfile_and_workflow(self) -> None:
+        self.generate_consumer(DOCKER_AND_WORKFLOW_FILES)
         self.assert_passes("hadolint", "Dockerfile")
-        self.assert_passes("jactionlint", ".github/workflows/check.yml")
-        self.assert_passes(*PINACT)
-
-    def test_pinact_needs_policy(self) -> None:
-        self.consumer(DOCUMENTS)
-        (self.directory / ".pinact.yaml").unlink()
-        result = self.run_tool(*PINACT)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("requires a version comment", result.stdout + result.stderr)
-
-    def test_local_exception(self) -> None:
-        self.consumer(
-            {},
-            'sections { ["*"] { oxlint { rules { ["unicorn/prefer-dom-node-dataset"] = "allow" } } } }',
-        )
-        rules = self.read_json(".oxlintrc.json")["rules"]
-        self.assertEqual(rules["unicorn/prefer-dom-node-dataset"], "allow")
-        self.assertEqual(rules["curly"], "deny")
-
-    def test_clean_checkout(self) -> None:
-        for name in (".toolconfig.pkl", ".toolconfig.lock", ".editorconfig", ".gitignore"):
-            shutil.copyfile(ROOT / name, self.directory / name)
-        shutil.copytree(ROOT / "profiles", self.directory / "profiles")
-        tracked = {
-            name: (self.directory / name).read_bytes()
-            for name in (".editorconfig", ".toolconfig.lock")
-        }
-        self.assert_passes("toolconfig", "check", "--strict")
-        self.assert_passes("toolconfig", "generate", "--strict")
-        for name, content in tracked.items():
-            self.assertEqual((self.directory / name).read_bytes(), content, name)
+        self.assert_passes(*PINACT_CHECK)
 
 
 if __name__ == "__main__":

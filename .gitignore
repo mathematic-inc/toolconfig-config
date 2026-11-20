@@ -1,6 +1,4 @@
 __pycache__/
-.ruff_cache/
-.rumdl_cache/
 
 # BEGIN TOOLCONFIG GENERATED FILES
 .toolconfig-stage-*
