@@ -56,7 +56,7 @@ Run `toolconfig generate` before the checks: in the hk hooks and in CI. Run
 | Tool | File | Settings |
 | --- | --- | --- |
 | EditorConfig | `.editorconfig` | UTF-8, LF, final newline, no trailing whitespace, 2 spaces, width 100; Rust and Python 4 spaces; Go, shell and Make tabs; Markdown width 80 |
-| buf | `buf.yaml` | lint `STANDARD`, breaking `FILE` |
+| buf | `buf.yaml` | `lint` uses `STANDARD`, `breaking` uses `FILE` |
 | cargo-deny | `deny.toml` | licenses Apache-2.0, MIT, Unicode-3.0, Zlib; wildcards and unknown sources denied; duplicate versions warn |
 | gitleaks | `.gitleaks.toml` | the default rules |
 | hadolint | `.hadolint.yaml` | the default rules |
@@ -78,8 +78,8 @@ Run `toolconfig generate` before the checks: in the hk hooks and in CI. Run
 The profile excludes these generated folders from oxfmt, oxlint, rumdl and
 typos: `dist`, `gen`, `generated`, `node_modules`, `target` and `vendor`.
 
-Type-aware oxlint rules need `oxlint-tsgolint`. Svelte formatting needs `svelte`
-in the `node_modules` folder of the oxfmt that runs.
+Type-aware oxlint rules need `oxlint-tsgolint`. oxfmt formats a Svelte file
+only when `svelte` is in the `node_modules` folder of that oxfmt.
 
 ## Outside ToolConfig
 
@@ -101,24 +101,32 @@ nursery = { level = "deny", priority = -1 }
 pedantic = { level = "deny", priority = -1 }
 restriction = { level = "deny", priority = -1 }
 as_conversions = "allow"
+big_endian_bytes = "allow"
 blanket_clippy_restriction_lints = "allow"
 exhaustive_enums = "allow"
 exhaustive_structs = "allow"
 expect_used = "allow"
+field_scoped_visibility_modifiers = "allow"
 implicit_return = "allow"
+inline_asm_x86_intel_syntax = "allow"
+little_endian_bytes = "allow"
 missing_docs_in_private_items = "allow"
 missing_trait_methods = "allow"
 module_name_repetitions = "allow"
 needless_borrowed_reference = "allow"
 pub_use = "allow"
+pub_with_shorthand = "allow"
 question_mark_used = "allow"
+redundant_pub_crate = "allow"
 ref_patterns = "allow"
+rest_pattern_accessible_field = "allow"
 self_named_module_files = "allow"
-separated_literal_suffix = "allow"
+semicolon_outside_block = "allow"
 shadow_reuse = "allow"
 shadow_same = "allow"
 single_call_fn = "allow"
 unreachable = "allow"
+unseparated_literal_suffix = "allow"
 
 [workspace.lints.rust]
 missing_debug_implementations = "deny"
@@ -163,7 +171,14 @@ with no setting.
 | TOML width | tombi default: every repository | not set | Most repositories. An explicit width makes tombi wrap arrays and inline tables |
 | Changelogs and generated folders | excluded by every `hk.pkl` | excluded in rumdl and typos | release-please writes the changelogs. The tools then agree with hk |
 | harper ignored rules | 15 rules in every repository; 1 to 6 more in 6 repositories | the 15 rules | Stricter: the fewest ignored rules |
-| Clippy and Rust lint levels | protovalidate-buffa: all, nursery, pedantic `deny`; unfmt: all, nursery, pedantic, restriction `warn` with 19 `allow`; tauri-plugin-ui-inspector: all, pedantic and 4 Rust lints `warn`; toolconfig: `unreachable_pub`; default: others | every group and lint at `deny`, with the 19 `allow` | Stricter. CI runs Clippy with `-D warnings`, so `warn` fails too |
+| Clippy and Rust lint levels | protovalidate-buffa: all, nursery, pedantic `deny`; unfmt: all, nursery, pedantic, restriction `warn` with 19 `allow`; tauri-plugin-ui-inspector: all, pedantic and 4 Rust lints `warn`; toolconfig: `unreachable_pub`; default: others | every group and lint at `deny`; the `allow` list of unfmt without `separated_literal_suffix`; one lint of each contradictory pair below at `allow` | Stricter. CI runs Clippy with `-D warnings`, so `warn` fails too |
+| Clippy `pub_with_shorthand`, `pub_without_shorthand` | both on in the union; the code of 7 repositories writes `pub(crate)` and `pub(super)` (177 findings for the first lint, 0 for the second) | `pub_with_shorthand` allowed | The two lints contradict each other. The code uses the short form |
+| Clippy `semicolon_inside_block`, `semicolon_outside_block` | both on in the union; 9 findings for the second lint, 0 for the first | `semicolon_outside_block` allowed | The two lints contradict each other. The code puts the semicolon inside the block |
+| Clippy `redundant_pub_crate`, `field_scoped_visibility_modifiers` and Rust `unreachable_pub` | toolconfig and tauri-plugin-ui-inspector turn on `unreachable_pub`; the union adds the two Clippy lints | both Clippy lints allowed | In a private module, `pub` breaks `unreachable_pub` and `pub(crate)` breaks the Clippy lints. Two repositories ask for `unreachable_pub` by name |
+| Clippy `big_endian_bytes`, `little_endian_bytes`, `host_endian_bytes` | all three on in the union | the first two allowed | With all three, no byte-order conversion passes. A wire format sets the byte order: protobuf is little-endian, a Connect frame header is big-endian |
+| Clippy `rest_pattern_accessible_field`, `unneeded_field_pattern` | both on in the union; 137 findings for the first lint, 0 for the second | `rest_pattern_accessible_field` allowed | The two lints contradict each other. The code uses `..` in struct patterns |
+| Clippy `inline_asm_x86_att_syntax`, `inline_asm_x86_intel_syntax` | both on in the union | `inline_asm_x86_intel_syntax` allowed | With both, no x86 assembly passes. Intel syntax is the default of Rust |
+| Clippy `separated_literal_suffix`, `unseparated_literal_suffix` | unfmt allows the first lint, so it asks for `1_u32`; the code of 4 repositories writes `1u32` (670 findings for the second lint, 0 for the first) | `unseparated_literal_suffix` allowed | A style choice. Most repositories write `1u32` |
 
 Some settings had one value in every repository that set them. The profile keeps
 that value. These settings are:

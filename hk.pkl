@@ -40,6 +40,14 @@ local goFiles = List("go.mod", "go.sum", "**/*.go")
 local slow = List("slow")
 
 local checks = new Mapping<String, Step> {
+  // The other steps read the tool settings that ToolConfig writes. Git ignores those files, so a
+  // fresh clone does not have them.
+  ["toolconfig"] {
+    glob = "**/*"
+    exclusive = true
+    check = "toolconfig generate --strict"
+  }
+
   // Repository hygiene.
   ["bom"] = Builtins.byte_order_marker
   ["case-conflicts"] = Builtins.check_case_conflict
