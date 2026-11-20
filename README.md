@@ -77,12 +77,15 @@ error. `toolconfig check --strict` reports a missing, stale or modified
 `.hk/org.pkl`. Do not edit it. A new `rev` and `toolconfig generate` change it.
 
 A fresh checkout does not have the other generated files. The first step runs
-`toolconfig generate --strict`, and the other steps wait for it. In CI, run
-[toolconfig-action](https://github.com/mathematic-inc/toolconfig-action) in each
-job that runs a tool, before that tool. The action runs
-`toolconfig check --strict` and then `toolconfig generate --strict`. A job that
-runs only `hk check` can run `toolconfig check --strict` before hk instead. The
-first hk step then generates the files.
+`toolconfig generate --strict`, and the other steps wait for it.
+
+In CI, run
+[toolconfig-action](https://github.com/mathematic-inc/toolconfig-action),
+pinned by commit, in each job that runs a tool, before that tool. The action
+runs `toolconfig check --strict` and then `toolconfig generate --strict`. After
+the action, run `hk check --all --slow --skip-step toolconfig`, so that
+ToolConfig does not run again. `.github/workflows/check.yml` of this repository
+shows the steps.
 
 ## What the profile writes
 
