@@ -1,0 +1,241 @@
+amends
+  "package://github.com/mathematic-inc/toolconfig/releases/download/v2026.11.4/toolconfig@2026.11.4#/ToolConfig.pkl"
+
+// The README gives the reason for each choice.
+
+root = true
+
+local generatedFolders =
+  List(
+    "**/dist/**",
+    "**/gen/**",
+    "**/generated/**",
+    "**/node_modules/**",
+    "**/target/**",
+    "**/vendor/**",
+  )
+
+toolconfig {
+  tools =
+    List(
+      "buf",
+      "cargo-deny",
+      "gitleaks",
+      "hadolint",
+      "knip",
+      "lychee",
+      "oxfmt",
+      "oxlint",
+      "ruff",
+      "rumdl",
+      "rustfmt",
+      "shellcheck",
+      "tombi",
+      "ty",
+      "typos",
+    )
+  // tombi wraps no line at its default settings. An explicit width wraps long arrays and inline
+  // tables, so the profile keeps the default.
+  tombi { skip = List("max_line_length") }
+  files {
+    ["jactionlint"] {
+      path = ".github/jactionlint.yaml"
+      format = "yaml"
+      config { profile = "correctness" }
+    }
+    ["ryl"] {
+      // ToolConfig 2026.11.4 writes ryl's deprecated top-level `rules` table, which ryl 0.29
+      // ignores with a warning. This file writes `lint.rules` directly.
+      path = ".ryl.toml"
+      format = "toml"
+      config {
+        files { yaml = List("*.yaml", "*.yml") }
+        lint {
+          rules {
+            anchors = "enable"
+            braces = "enable"
+            brackets = "enable"
+            colons = "enable"
+            commas = "enable"
+            ["document-end"] = "disable"
+            ["document-start"] = "disable"
+            ["empty-lines"] = "enable"
+            ["empty-values"] = "disable"
+            ["float-values"] = "disable"
+            hyphens = "enable"
+            indentation = "enable"
+            ["key-duplicates"] = "enable"
+            ["key-ordering"] = "disable"
+            ["line-length"] = "disable"
+            ["new-line-at-end-of-file"] = "enable"
+            ["new-lines"] = "enable"
+            ["octal-values"] = "disable"
+            ["quoted-strings"] = "disable"
+            ["trailing-spaces"] = "enable"
+            comments {
+              level = "warning"
+              ["min-spaces-from-content"] = 1
+            }
+            ["comments-indentation"] { level = "warning" }
+            truthy {
+              ["check-keys"] = false
+              level = "warning"
+            }
+          }
+        }
+        format { ["quote-style"] = "preserve" }
+      }
+    }
+    ["pinact"] {
+      path = ".pinact.yaml"
+      format = "yaml"
+      config {
+        version = 3
+        rules {
+          new {
+            ignore = true
+            conditions {
+              new { expr = "ActionName == \"dtolnay/rust-toolchain\"" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+sections {
+  ["*"] {
+    charset = "utf-8"
+    end_of_line = "lf"
+    insert_final_newline = true
+    trim_trailing_whitespace = true
+    indent_style = "space"
+    indent_size = 2
+    max_line_length = 100
+
+    `cargo-deny` {
+      licenses {
+        allow = List("Apache-2.0", "MIT", "Unicode-3.0", "Zlib")
+      }
+      bans {
+        ["multiple-versions"] = "warn"
+        wildcards = "deny"
+      }
+      sources {
+        ["unknown-registry"] = "deny"
+        ["unknown-git"] = "deny"
+      }
+    }
+    gitleaks { extend { useDefault = true } }
+    knip { treatConfigHintsAsErrors = true }
+    lychee {
+      offline = true
+      no_progress = true
+    }
+    oxfmt {
+      semi = true
+      singleQuote = false
+      sortImports = true
+      // sort-package-json orders package.json keys.
+      sortPackageJson = false
+      svelte { sortOrder = "options-scripts-markup-styles" }
+      // rumdl formats Markdown and tombi formats TOML.
+      ignorePatterns = generatedFolders + List("**/*.md", "**/*.toml")
+    }
+    oxlint {
+      ignorePatterns = generatedFolders
+      categories {
+        correctness = "deny"
+        suspicious = "deny"
+        pedantic = "deny"
+        perf = "deny"
+      }
+      options {
+        denyWarnings = true
+        reportUnusedDisableDirectives = "deny"
+        typeAware = true
+      }
+      rules {
+        ["curly"] = "deny"
+        ["default-case-last"] = "deny"
+        ["eqeqeq"] = List("deny", "smart")
+        ["max-classes-per-file"] = "allow"
+        ["max-depth"] = "allow"
+        ["max-lines"] = "allow"
+        ["max-lines-per-function"] = "allow"
+        ["no-await-in-loop"] = "allow"
+        ["no-implicit-coercion"] = "deny"
+        ["no-inline-comments"] = "allow"
+        ["no-loop-func"] = "allow"
+        ["no-multi-assign"] = "deny"
+        ["no-redeclare"] = "allow"
+        ["no-sequences"] = "deny"
+        ["no-shadow"] = "allow"
+        ["no-underscore-dangle"] = "allow"
+        ["no-useless-return"] = "allow"
+        ["oxc/branches-sharing-code"] = "allow"
+        ["oxc/no-map-spread"] = "allow"
+        ["prefer-object-has-own"] = "deny"
+        ["radix"] = "deny"
+        ["require-unicode-regexp"] = List("deny", new Dynamic { requireFlag = "v" })
+        ["require-await"] = "allow"
+        ["typescript/consistent-type-imports"] = "deny"
+        ["typescript/no-extraneous-class"] = "allow"
+        ["typescript/no-import-type-side-effects"] = "deny"
+        ["typescript/no-unsafe-declaration-merging"] = "allow"
+        ["unicorn/consistent-function-scoping"] = "allow"
+        ["unicorn/explicit-length-check"] = "deny"
+        ["unicorn/no-abusive-eslint-disable"] = "deny"
+        ["unicorn/no-array-callback-reference"] = "allow"
+        ["unicorn/no-immediate-mutation"] = "allow"
+        ["unicorn/no-new-array"] = "deny"
+        ["unicorn/no-useless-undefined"] = "allow"
+        ["unicorn/no-typeof-undefined"] = "deny"
+        ["unicorn/prefer-includes"] = "deny"
+        ["unicorn/prefer-native-coercion-functions"] = "allow"
+        ["unicorn/prefer-add-event-listener"] = "allow"
+        ["unicorn/prefer-event-target"] = "allow"
+        ["unicorn/prefer-number-properties"] = "deny"
+        ["unicorn/prefer-string-starts-ends-with"] = "deny"
+        ["unicorn/prefer-string-slice"] = "allow"
+        ["unicorn/prefer-top-level-await"] = "allow"
+        ["unicorn/require-array-join-separator"] = "deny"
+        ["unicorn/require-number-to-fixed-digits-argument"] = "deny"
+      }
+      overrides {
+        new {
+          files = List("**/*.d.ts")
+          rules { ["unicorn/require-module-specifiers"] = "allow" }
+        }
+        new {
+          files = List("**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts", "**/*.svelte")
+          plugins = List("eslint", "import", "oxc", "typescript", "unicorn")
+          rules { ["import/first"] = "deny" }
+        }
+      }
+    }
+    rumdl {
+      global { exclude = generatedFolders + List("**/CHANGELOG.md") }
+    }
+    shellcheck { ["external-sources"] = true }
+    // release-please writes the changelogs.
+    typos { files { ["extend-exclude"] = generatedFolders + List("CHANGELOG.md") } }
+  }
+  ["*.{rs,py,pyi}"] { indent_size = 4 }
+  ["*.rs"] {
+    rustfmt { use_field_init_shorthand = true }
+  }
+  ["*.go"] { indent_style = "tab" }
+  // shfmt reads these properties. The scripts that shfmt formats use tabs.
+  ["*.{sh,bash}"] { indent_style = "tab" }
+  ["{Makefile,*.mk}"] { indent_style = "tab" }
+  ["*.{md,markdown}"] { max_line_length = 80 }
+  ["*.proto"] {
+    buf {
+      version = "v2"
+      lint { use = List("STANDARD") }
+      breaking { use = List("FILE") }
+    }
+  }
+}
