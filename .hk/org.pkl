@@ -190,7 +190,6 @@ steps {
     profiles = slow
   }
 
-  // gofmt reads only Go source; go.mod and go.sum belong to go-mod-tidy.
   ["go-fmt"] = (Builtins.go_fmt) {
     glob = List("**/*.go")
   }
