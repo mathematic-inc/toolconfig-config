@@ -1,0 +1,226 @@
+amends
+  "package://github.com/mathematic-inc/toolconfig/releases/download/v2026.11.6/toolconfig@2026.11.6#/ToolConfig.pkl"
+
+// The README gives the reason for each choice.
+
+root = true
+
+local generatedFolders =
+  List(
+    "**/dist/**",
+    "**/gen/**",
+    "**/generated/**",
+    "**/node_modules/**",
+    "**/target/**",
+    "**/vendor/**",
+  )
+
+local generatedFoldersAndChangelogs = generatedFolders + List("**/CHANGELOG.md")
+
+toolconfig {
+  tools =
+    List(
+      "actionlint",
+      "buf",
+      "cargo-deny",
+      "gitleaks",
+      "hadolint",
+      "knip",
+      "lychee",
+      "oxfmt",
+      "oxlint",
+      "ruff",
+      "rumdl",
+      "rustfmt",
+      "ryl",
+      "shellcheck",
+      "tombi",
+      "ty",
+      "typos",
+    )
+  ryl { skip = List("max_line_length") }
+  tombi { skip = List("max_line_length") }
+  files {
+    // hk reads `hk.pkl` before the first step runs, so the base that it amends is committed.
+    ["hk"] {
+      path = ".hk/org.pkl"
+      format = "text"
+      committed = true
+      config = read("../../hk/org.pkl").text
+    }
+    ["pinact"] {
+      // pinact asks for a version comment on a commit pin. `dtolnay/rust-toolchain` has no version
+      // tags, so its commit pins carry `# stable`, a branch name.
+      path = ".pinact.yaml"
+      format = "yaml"
+      config {
+        version = 3
+        rules {
+          new {
+            ignore = true
+            conditions {
+              new {
+                expr =
+                  "ActionName == \"dtolnay/rust-toolchain\" && ActionVersion matches \"^[0-9a-f]{40}$\""
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+sections {
+  ["*"] {
+    charset = "utf-8"
+    end_of_line = "lf"
+    insert_final_newline = true
+    trim_trailing_whitespace = true
+    indent_style = "space"
+    indent_size = 2
+    max_line_length = 100
+
+    `cargo-deny` {
+      licenses {
+        allow = List("Apache-2.0", "MIT", "Unicode-3.0", "Zlib")
+      }
+      bans {
+        wildcards = "deny"
+      }
+      sources {
+        ["unknown-registry"] = "deny"
+        ["unknown-git"] = "deny"
+      }
+    }
+    actionlint { profile = "default" }
+    gitleaks { extend { useDefault = true } }
+    knip { treatConfigHintsAsErrors = true }
+    lychee { offline = true }
+    oxfmt {
+      sortImports = true
+      sortPackageJson = false
+      svelte { sortOrder = "options-scripts-markup-styles" }
+      ignorePatterns = generatedFolders + List("**/*.md", "**/*.toml")
+    }
+    oxlint {
+      ignorePatterns = generatedFolders
+      categories {
+        correctness = "deny"
+        suspicious = "deny"
+        pedantic = "deny"
+        perf = "deny"
+      }
+      options {
+        denyWarnings = true
+        reportUnusedDisableDirectives = "deny"
+        typeAware = true
+      }
+      rules {
+        ["curly"] = "deny"
+        ["default-case-last"] = "deny"
+        ["eqeqeq"] { "deny"; "smart" }
+        ["max-classes-per-file"] = "allow"
+        ["max-depth"] = "allow"
+        ["max-lines"] = "allow"
+        ["max-lines-per-function"] = "allow"
+        ["no-await-in-loop"] = "allow"
+        ["no-implicit-coercion"] = "deny"
+        ["no-inline-comments"] = "allow"
+        ["no-loop-func"] = "allow"
+        ["no-multi-assign"] = "deny"
+        ["no-redeclare"] = "allow"
+        ["no-sequences"] = "deny"
+        ["no-shadow"] = "allow"
+        ["no-underscore-dangle"] = "allow"
+        ["no-useless-return"] = "allow"
+        ["oxc/branches-sharing-code"] = "allow"
+        ["oxc/no-map-spread"] = "allow"
+        ["prefer-object-has-own"] = "deny"
+        ["radix"] = "deny"
+        ["require-unicode-regexp"] { "deny"; new { requireFlag = "v" } }
+        ["require-await"] = "allow"
+        ["typescript/consistent-type-imports"] = "deny"
+        ["typescript/no-extraneous-class"] = "allow"
+        ["typescript/no-import-type-side-effects"] = "deny"
+        ["typescript/no-unsafe-declaration-merging"] = "allow"
+        ["unicorn/consistent-function-scoping"] = "allow"
+        ["unicorn/explicit-length-check"] = "deny"
+        ["unicorn/no-abusive-eslint-disable"] = "deny"
+        ["unicorn/no-array-callback-reference"] = "allow"
+        ["unicorn/no-immediate-mutation"] = "allow"
+        ["unicorn/no-new-array"] = "deny"
+        ["unicorn/no-useless-undefined"] = "allow"
+        ["unicorn/no-typeof-undefined"] = "deny"
+        ["unicorn/prefer-includes"] = "deny"
+        ["unicorn/prefer-native-coercion-functions"] = "allow"
+        ["unicorn/prefer-add-event-listener"] = "allow"
+        ["unicorn/prefer-event-target"] = "allow"
+        ["unicorn/prefer-number-properties"] = "deny"
+        ["unicorn/prefer-string-starts-ends-with"] = "deny"
+        ["unicorn/prefer-string-slice"] = "allow"
+        ["unicorn/prefer-top-level-await"] = "allow"
+        ["unicorn/require-array-join-separator"] = "deny"
+        ["unicorn/require-number-to-fixed-digits-argument"] = "deny"
+      }
+      overrides {
+        new {
+          files = List("**/*.d.ts")
+          rules { ["unicorn/require-module-specifiers"] = "allow" }
+        }
+        new {
+          files = List("**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts", "**/*.svelte")
+          plugins = List("eslint", "import", "oxc", "typescript", "unicorn")
+          rules { ["import/first"] = "deny" }
+        }
+      }
+    }
+    ryl {
+      files { yaml = List("*.yaml", "*.yml") }
+      lint {
+        strict = true
+        rules {
+          anchors = "enable"
+          braces = "enable"
+          brackets = "enable"
+          colons = "enable"
+          commas = "enable"
+          ["document-end"] = "disable"
+          ["document-start"] = "disable"
+          ["empty-lines"] = "enable"
+          ["empty-values"] = "disable"
+          ["float-values"] = "disable"
+          hyphens = "enable"
+          ["key-ordering"] = "disable"
+          ["line-length"] = "disable"
+          ["new-line-at-end-of-file"] = "enable"
+          ["octal-values"] = "disable"
+          ["quoted-strings"] = "disable"
+          ["trailing-spaces"] = "enable"
+          comments {
+            level = "warning"
+            ["min-spaces-from-content"] = 1
+          }
+          ["comments-indentation"] { level = "warning" }
+          truthy {
+            ["check-keys"] = false
+            level = "warning"
+          }
+        }
+      }
+      format { ["quote-style"] = "preserve" }
+    }
+    rumdl {
+      global { exclude = generatedFoldersAndChangelogs }
+    }
+    shellcheck { ["external-sources"] = true }
+    typos { files { ["extend-exclude"] = generatedFoldersAndChangelogs } }
+  }
+  ["*.{rs,py,pyi}"] { indent_size = 4 }
+  ["*.rs"] {
+    rustfmt { use_field_init_shorthand = true }
+  }
+  ["*.go"] { indent_style = "tab" }
+  ["{Makefile,*.mk}"] { indent_style = "tab" }
+  ["*.{md,markdown}"] { max_line_length = 80 }
+}
