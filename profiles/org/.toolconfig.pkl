@@ -1,8 +1,6 @@
 amends
   "package://github.com/mathematic-inc/toolconfig/releases/download/v2026.11.6/toolconfig@2026.11.6#/ToolConfig.pkl"
 
-// The README gives the reason for each choice.
-
 root = true
 
 local generatedFolders =
