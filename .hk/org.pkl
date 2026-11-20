@@ -40,7 +40,6 @@ local oxfmtFiles =
   )
 
 local rustFiles = List("Cargo.toml", "Cargo.lock", "**/Cargo.toml", "**/*.rs")
-local goFiles = List("go.mod", "go.sum", "**/*.go")
 local slow = List("slow")
 
 steps {
@@ -191,8 +190,9 @@ steps {
     profiles = slow
   }
 
+  // gofmt reads only Go source; go.mod and go.sum belong to go-mod-tidy.
   ["go-fmt"] = (Builtins.go_fmt) {
-    glob = goFiles
+    glob = List("**/*.go")
   }
   ["go-mod-tidy"] = (Builtins.gomod_tidy) {
     depends = "go-fmt"
