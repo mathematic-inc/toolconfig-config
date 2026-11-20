@@ -89,7 +89,7 @@ In CI, run
 pinned by commit, in each job that runs a tool, before that tool. The action
 runs `toolconfig check --strict` and then `toolconfig generate --strict`. After
 the action, run `hk check --all --slow --skip-step toolconfig`, so that
-ToolConfig does not run again. `.github/workflows/check.yml` of this repository
+ToolConfig does not run again. `.github/workflows/ci.yml` of this repository
 shows the steps.
 
 ## What the profile writes
