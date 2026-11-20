@@ -178,12 +178,10 @@ mise install
 mise run check
 ```
 
-The tests generate the profile in a fixture repository for Rust, TypeScript,
-protobuf, shell, and a Dockerfile with a workflow. Each fixture imports the
-profile as a consumer does. Then the tests run each tool on the fixture.
-`hk check` runs the other tools on the files of this repository. A change to the
-profile must keep every check green. A consumer moves to a new version when it
-changes its `rev` and regenerates.
+`mise run check` runs `toolconfig check --strict` and `hk check --all --slow` on
+the files of this repository. A consumer moves to a new version when it changes
+its `rev` and runs `toolconfig generate`. Its hooks and CI then run each tool
+with the new settings.
 
 ## License
 
