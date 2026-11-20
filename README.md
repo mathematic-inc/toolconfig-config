@@ -43,8 +43,8 @@ Keep only these settings in the repository:
 Local tables merge with the profile key by key. A local list replaces the list
 of the profile. Thus, a local `ignorePatterns` or `extend-exclude` list must
 repeat the entries of the profile that it keeps. A local `files` entry, such as
-`ryl` or `pinact`, replaces the whole entry of the profile. Copy the full entry
-to change one value.
+`pinact`, replaces the whole entry of the profile. Copy the full entry to change
+one value.
 
 Remove each native file that the profile writes with `git rm` before the first
 `toolconfig generate`. ToolConfig does not overwrite a file that it did not
@@ -165,6 +165,7 @@ with no setting.
 | zizmor minimum severity (hk) | `low`: the 17 repositories with the organization's hk steps. Every severity: toolconfig-action | every severity | Stricter |
 | pinact rule for `dtolnay/rust-toolchain` | Ignored: addr-spec-rs, connectrpc-tauri, if-changed, protovalidate-buffa, sqlc-gen-sqlx, tauri-plugin-ui-inspector, unfmt. Default: the 10 other repositories with the organization's hk steps | ignored only for a commit pin | Stricter than the rule of the 7 repositories: pinact still rejects a branch or a tag. The action has no version tags, so its commit pins carry `# stable` |
 | Python width | 100: toolconfig | 100 | The only repository with Python. Ruff's selected rules do not limit width |
+| YAML indentation (ryl) | Default (`consistent`): every repository | 2 spaces, from `.editorconfig` | Stricter. The YAML files of the 22 repositories pass |
 | TOML width | tombi default: every repository | not set | Every repository. An explicit width makes tombi wrap arrays and inline tables |
 | Changelogs and generated folders | Excluded by the 17 `hk.pkl` files of the organization's steps | Changelogs: rumdl and typos. Generated folders: oxfmt, oxlint, rumdl and typos | release-please writes most changelogs. The tools then agree with hk |
 | Generated folders in hk | Excluded by 12 steps in the 17 `hk.pkl` files of the organization's steps: the Markdown, YAML, JavaScript, JSON and Rust format steps, and the whitespace, newline and large-file checks. Read by the other steps | excluded for every step, in the top-level `exclude` | One list that a repository extends. gitleaks scans every commit, generated folders included |

@@ -32,11 +32,13 @@ toolconfig {
       "ruff",
       "rumdl",
       "rustfmt",
+      "ryl",
       "shellcheck",
       "tombi",
       "ty",
       "typos",
     )
+  ryl { skip = List("max_line_length") }
   tombi { skip = List("max_line_length") }
   files {
     // hk reads `hk.pkl` before the first step runs, so the base that it amends is committed.
@@ -45,50 +47,6 @@ toolconfig {
       format = "text"
       committed = true
       config = read("../../hk/org.pkl").text
-    }
-    ["ryl"] {
-      // TOOLCONFIG-BUG: ToolConfig 2026.11.4 writes ryl options in the deprecated top-level
-      // `rules` table, so the profile writes `.ryl.toml` here. Use the `ryl` tool after the fix.
-      path = ".ryl.toml"
-      format = "toml"
-      config {
-        files { yaml = List("*.yaml", "*.yml") }
-        lint {
-          strict = true
-          rules {
-            anchors = "enable"
-            braces = "enable"
-            brackets = "enable"
-            colons = "enable"
-            commas = "enable"
-            ["document-end"] = "disable"
-            ["document-start"] = "disable"
-            ["empty-lines"] = "enable"
-            ["empty-values"] = "disable"
-            ["float-values"] = "disable"
-            hyphens = "enable"
-            indentation = "enable"
-            ["key-duplicates"] = "enable"
-            ["key-ordering"] = "disable"
-            ["line-length"] = "disable"
-            ["new-line-at-end-of-file"] = "enable"
-            ["new-lines"] = "enable"
-            ["octal-values"] = "disable"
-            ["quoted-strings"] = "disable"
-            ["trailing-spaces"] = "enable"
-            comments {
-              level = "warning"
-              ["min-spaces-from-content"] = 1
-            }
-            ["comments-indentation"] { level = "warning" }
-            truthy {
-              ["check-keys"] = false
-              level = "warning"
-            }
-          }
-        }
-        format { ["quote-style"] = "preserve" }
-      }
     }
     ["pinact"] {
       // pinact asks for a version comment on a commit pin. `dtolnay/rust-toolchain` has no version
@@ -161,7 +119,7 @@ sections {
       rules {
         ["curly"] = "deny"
         ["default-case-last"] = "deny"
-        ["eqeqeq"] = List("deny", "smart")
+        ["eqeqeq"] { "deny"; "smart" }
         ["max-classes-per-file"] = "allow"
         ["max-depth"] = "allow"
         ["max-lines"] = "allow"
@@ -180,7 +138,7 @@ sections {
         ["oxc/no-map-spread"] = "allow"
         ["prefer-object-has-own"] = "deny"
         ["radix"] = "deny"
-        ["require-unicode-regexp"] = List("deny", new Dynamic { requireFlag = "v" })
+        ["require-unicode-regexp"] { "deny"; new { requireFlag = "v" } }
         ["require-await"] = "allow"
         ["typescript/consistent-type-imports"] = "deny"
         ["typescript/no-extraneous-class"] = "allow"
@@ -216,6 +174,41 @@ sections {
           rules { ["import/first"] = "deny" }
         }
       }
+    }
+    ryl {
+      files { yaml = List("*.yaml", "*.yml") }
+      lint {
+        strict = true
+        rules {
+          anchors = "enable"
+          braces = "enable"
+          brackets = "enable"
+          colons = "enable"
+          commas = "enable"
+          ["document-end"] = "disable"
+          ["document-start"] = "disable"
+          ["empty-lines"] = "enable"
+          ["empty-values"] = "disable"
+          ["float-values"] = "disable"
+          hyphens = "enable"
+          ["key-ordering"] = "disable"
+          ["line-length"] = "disable"
+          ["new-line-at-end-of-file"] = "enable"
+          ["octal-values"] = "disable"
+          ["quoted-strings"] = "disable"
+          ["trailing-spaces"] = "enable"
+          comments {
+            level = "warning"
+            ["min-spaces-from-content"] = 1
+          }
+          ["comments-indentation"] { level = "warning" }
+          truthy {
+            ["check-keys"] = false
+            level = "warning"
+          }
+        }
+      }
+      format { ["quote-style"] = "preserve" }
     }
     rumdl {
       global { exclude = generatedFoldersAndChangelogs }
