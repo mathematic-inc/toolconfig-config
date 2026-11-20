@@ -6,7 +6,7 @@ the repositories of mathematic-inc. It needs ToolConfig 2026.11.6 or newer, hk
 
 The policy is one profile, `profiles/org/.toolconfig.pkl`. It holds the settings
 that ToolConfig writes for the tools of mathematic-inc repositories. It also
-writes the hk steps of the organization, `hk/org.pkl`.
+writes `hk/org.pkl`, the hk steps of the organization, to `.hk/org.pkl`.
 [Outside ToolConfig](#outside-toolconfig) gives the other settings. Where
 repositories disagree, the profile keeps the stricter setting. For a pure style
 choice, it keeps the most common one. [Decisions](#decisions) gives each choice
@@ -54,8 +54,7 @@ files. Commit `.toolconfig.pkl`, `.toolconfig.lock`, `.editorconfig`,
 
 ## hk
 
-The profile writes `hk/org.pkl` of this repository to `.hk/org.pkl`. Write this
-`hk.pkl` in the repository:
+Write this `hk.pkl` in the repository:
 
 ```pkl
 amends ".hk/org.pkl"
@@ -79,6 +78,12 @@ error. `toolconfig check --strict` reports a missing, stale or modified
 A fresh checkout does not have the other generated files. The first step runs
 `toolconfig generate --strict`, and the other steps wait for it.
 
+The harper, zizmor, gitleaks and kingfisher steps hold their settings as
+command-line options. ghalint, shellharden and sort-package-json run with their
+defaults. The harper step ignores only the rules that every repository ignores.
+The zizmor step reports findings of every severity. The jactionlint step takes
+its profile from `.github/actionlint.yaml`, so it has no `--profile` option.
+
 In CI, run
 [toolconfig-action](https://github.com/mathematic-inc/toolconfig-action),
 pinned by commit, in each job that runs a tool, before that tool. The action
@@ -99,14 +104,7 @@ installed.
 
 ## Outside ToolConfig
 
-These settings are not in a file that ToolConfig writes for a tool.
-
-The harper, zizmor, gitleaks and kingfisher steps of `hk/org.pkl` hold their
-settings as command-line options. ghalint, shellharden and sort-package-json run
-with their defaults. The harper step ignores only the rules that every
-repository ignores. The zizmor step reports findings of every severity. The
-jactionlint step takes its profile from `.github/actionlint.yaml`, so it has no
-`--profile` option.
+These settings are not in a file that ToolConfig writes.
 
 Clippy reads its lint levels from `Cargo.toml`, which ToolConfig does not write.
 Put this table in the root `Cargo.toml` of each Rust repository. Add
@@ -183,9 +181,12 @@ mise run check
 ```
 
 `mise run check` runs `toolconfig check --strict` and `hk check --all --slow` on
-the files of this repository. A consumer moves to a new version when it changes
-its `rev` and runs `toolconfig generate`. Its hooks and CI then run each tool
-with the new settings.
+the files of this repository. Its `hk.pkl` amends `hk/org.pkl`. After a change
+to `hk/org.pkl`, run `toolconfig generate`, so that `.hk/org.pkl` agrees.
+
+A consumer moves to a new version when it changes its `rev` and runs
+`toolconfig generate`. Its hooks and CI then run each tool with the new
+settings.
 
 ## License
 
